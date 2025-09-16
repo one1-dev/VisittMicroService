@@ -74,9 +74,8 @@ namespace VisitService.Models
         /// Whether the contact is archived
         /// </summary>
         /// <value>Whether the contact is archived</value>
-        [Required]
         [DataMember(Name="isArchived", EmitDefaultValue=true)]
-        public bool IsArchived { get; set; }
+        public bool? IsArchived { get; set; }
 
         /// <summary>
         /// Gets or Sets Tenant

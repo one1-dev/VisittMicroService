@@ -27,6 +27,7 @@ namespace VisitService.Middleware
                 KeyNotFoundException _ => new {Status = HttpStatusCode.NotFound.ToString(), ErrorMessage = 
                         string.IsNullOrEmpty(exception.Message)? "The request key not found." : exception.Message
                 , ErrorNumber = (int)HttpStatusCode.NotFound},
+                InvalidOperationException _ => new {Status = HttpStatusCode.Conflict.ToString(), ErrorMessage = exception.Message, ErrorNumber = (int)HttpStatusCode.Conflict},
                 UnauthorizedAccessException _ => new {Status = HttpStatusCode.Forbidden.ToString(), ErrorMessage = exception.Message, ErrorNumber = (int)HttpStatusCode.Forbidden},
                 _ => new {Status = HttpStatusCode.InternalServerError.ToString(), ErrorMessage = $"Internal server error. Please retry later. Message: " + exception.Message, ErrorNumber = (int)HttpStatusCode.InternalServerError}
             };

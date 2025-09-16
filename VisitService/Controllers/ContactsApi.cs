@@ -40,7 +40,7 @@ namespace VisitService.Controllers
         /// <response code="200">Contact archive status updated</response>
         [HttpDelete]
         [Route("/contacts/{contactId}/archive")]
-        [Authorize]
+        // [Authorize]
         [ValidateModelState]
         [SwaggerOperation("ContactsContactIdArchiveDelete")]
         [SwaggerResponse(statusCode: 200, type: typeof(Contact), description: "Contact archive status updated")]
@@ -57,7 +57,7 @@ namespace VisitService.Controllers
         /// <response code="200">Successful response</response>
         [HttpGet]
         [Route("/contacts/{contactId}")]
-        [Authorize]
+        // [Authorize]
         [ValidateModelState]
         [SwaggerOperation("ContactsContactIdGet")]
         [SwaggerResponse(statusCode: 200, type: typeof(Contact), description: "Successful response")]
@@ -75,7 +75,7 @@ namespace VisitService.Controllers
         /// <response code="200">Contact updated successfully</response>
         [HttpPut]
         [Route("/contacts/{contactId}")]
-        [Authorize]
+        // [Authorize]
         [Consumes("application/json")]
         [ValidateModelState]
         [SwaggerOperation("ContactsContactIdPut")]
@@ -94,7 +94,7 @@ namespace VisitService.Controllers
         /// <response code="400">Bad request</response>
         [HttpPost]
         [Route("/contacts")]
-        [Authorize]
+        // [Authorize]
         [Consumes("application/json")]
         [ValidateModelState]
         [SwaggerOperation("ContactsPost")]
@@ -114,7 +114,7 @@ namespace VisitService.Controllers
         /// <response code="200">Successful response</response>
         [HttpPost]
         [Route("/contacts/search")]
-        [Authorize]
+        // [Authorize]
         [Consumes("application/json")]
         [ValidateModelState]
         [SwaggerOperation("ContactsSearchPost")]

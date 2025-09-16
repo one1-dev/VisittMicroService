@@ -71,9 +71,8 @@ namespace VisitService.Models
         /// Whether the tenant is archived
         /// </summary>
         /// <value>Whether the tenant is archived</value>
-        [Required]
         [DataMember(Name="isArchived", EmitDefaultValue=true)]
-        public bool IsArchived { get; set; }
+        public bool? IsArchived { get; set; }
 
         /// <summary>
         /// Gets or Sets Integrations

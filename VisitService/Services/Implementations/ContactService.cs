@@ -12,28 +12,39 @@ public class ContactService : IContactService
         ILogger<ContactService> logger,
         ILogger<GenericGraphQlService<Contact>> genericLogger)
     { 
-        _genericService = new GenericGraphQlService<Contact>( client,  genericLogger, maxDepth: 3);
+        _genericService = new GenericGraphQlService<Contact>( client,  genericLogger, maxDepth: 4);
     }
     
-    public Task<SuccessResponse> DeleteContact(string contactId, bool archive, CancellationToken cancellationToken)
+    public async Task<SuccessResponse> DeleteContact(string contactId, bool archive, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var contact = await _genericService.Archive("Contact",contactId,archive,cancellationToken);
+        return new SuccessResponse
+        {
+            Data = contact, Message = "Contact archive successfully!", Success = true
+        };
     }
 
-    public Task<Contact> GetContactById(string contactId, CancellationToken cancellationToken)
+    public async Task<Contact> GetContactById(string contactId, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return await _genericService.GetById("contact","contactId",contactId,cancellationToken);
     }
 
-    public Task<Contact> UpdateContact(string contactId, ContactInput contactInput, CancellationToken cancellationToken)
+    public async Task<Contact> UpdateContact(string contactId, ContactInput contactInput, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return await _genericService.Update(
+            "Contact",
+            "contactId",
+            "updateContact",
+            contactId,
+            contactInput,
+            cancellationToken
+        );
     }
 
     public async Task<Contact> CreateContact(ContactInput contactInput, CancellationToken cancellationToken)
     {
         return await _genericService.Create(
-            "contact",
+            "Contact",
             "createContact",
             "contact",
             contactInput,

@@ -2,9 +2,9 @@ using System.Collections;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
-using MPACKAGE.LibDomain.Extensions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using VisitService.CModels;
 using VisitService.Helper;
 using VisitService.Repos;
 
@@ -36,7 +36,7 @@ public class GenericGraphQlService<T> where T : class
         CancellationToken cancellationToken)
     {
         var query = $@"
-            mutation {mutationName}(${ToCamelCase(entityName)}Ids: [String], $input: {entityName}UpdateInput) {{
+            mutation {mutationName}(${ToCamelCase(entityName)}Ids: [String!], $input: {entityName}UpdateInput) {{
                 {mutationName}({ToCamelCase(entityName)}Ids: ${ToCamelCase(entityName)}Ids, input: $input) {{
                     {resultFieldName} {{
                         {_cachedFields}
@@ -69,118 +69,46 @@ public class GenericGraphQlService<T> where T : class
             }}";
         
         var inputJObject = JObject.FromObject(new { input });
-    
-        if (inputJObject["input"]?["updatedAt"] == null)
-        {
-            inputJObject["input"]["updatedAt"] = DateTime.UtcNow.ToString("O"); // ISO format
-        }
-    
         var obInput = inputJObject.ToString();
-        _logger.LogInformation($"Creating {entityName} {mutationName}");
-        _logger.LogInformation("input {SerializeObject}", obInput);
-        var response = await _client.ExecuteQueryWithJsonAsync<dynamic>(
-            mutation, 
-            obInput, 
-            cancellationToken);
-
-
-        if (response?.Data is not JsonElement jsonElement) return default(T);
-        var data = NavigateToPath(jsonElement, $"{mutationName}.{resultFieldName}");
-            
-        return data.HasValue ? JsonConvert.DeserializeObject<T>(data.Value.GetRawText()) : null;
+        var response = await _client.ExecuteQueryWithJsonAsync<dynamic>(mutation,obInput, cancellationToken);
+        return DeserializeResponse(mutationName, resultFieldName, response);
     }
 
     public async Task<T> Update(
         string entityName,
+        string idName,
         string mutationName,
         string entityId,
         object input,
         CancellationToken cancellationToken)
     {
-        var functionName = FixQueryName(mutationName, out var _);
-
+        var camelCase = ToCamelCase(entityName);
+        var upperCase = ToUpperCase(entityName);
+        
         var mutation = $@"
-            mutation {functionName}(${ToCamelCase(entityName)}Ids: [String!], $input: {entityName}UpdateInput!) {{
-                {functionName}({ToCamelCase(entityName)}Ids: ${ToCamelCase(entityName)}Ids, input: $input) {{
-                    {ToCamelCase(entityName)}s {{
+            mutation {mutationName}(${idName}: String!, $input: {upperCase}Input!) {{
+                {mutationName}({idName}: ${idName}, input: $input) {{
+                    {camelCase} {{
                         {_cachedFields}
                     }}
                 }}
             }}";
         
-        var fixInput = ConvertEnumsToStrings(input);
+        var json = JsonConvert.SerializeObject(input, new JsonSerializerSettings 
+        { 
+            ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver(), 
+            NullValueHandling = NullValueHandling.Ignore 
+        });
+        
+        _logger.LogInformation("Serialized JSON: {Json}", json);
     
-        var variables = new Dictionary<string, object>
-        {
-            [$"{ToCamelCase(entityName)}Ids"] = new[] { entityId }, 
-            ["input"] = fixInput
-        };
-        
-        var response = await _client.ExecuteQueryAsync<dynamic>(
-            mutation, 
-            variables, 
-            cancellationToken);
-        
-        if (response?.Data is not JsonElement jsonElement) return default(T);
-        var data = NavigateToPath(jsonElement, $"{functionName}.{ToCamelCase(entityName)}s");
-        return data.HasValue ? JsonConvert.DeserializeObject<T>(data.Value.EnumerateArray().First().GetRawText()) : null;
-    }
-
-    private object ConvertEnumsToStrings(object input)
-    {
-        if (input == null) return null;
-
-        var inputType = input.GetType();
-        var convertedDict = new Dictionary<string, object>();
-
-        foreach (var property in inputType.GetProperties())
-        {
-            var value = property.GetValue(input);
-            
-            if (value == null)
-            {
-                convertedDict[ToCamelCase(property.Name)] = null;
-                continue;
-            }
-
-            var propertyType = property.PropertyType;
-            
-            if (propertyType.IsEnum)
-            {
-                convertedDict[ToCamelCase(property.Name)] = ConvertEnumToString((Enum)value);
-            }
-            else if (Nullable.GetUnderlyingType(propertyType)?.IsEnum == true)
-            {
-                convertedDict[ToCamelCase(property.Name)] = ConvertEnumToString((Enum)value);
-            }
-            else
-            {
-                convertedDict[ToCamelCase(property.Name)] = value;
-            }
-        }
-
-        return convertedDict;
-    }
-
-    private string ConvertEnumToString(Enum enumValue)
-    {
-        var field = enumValue.GetType().GetField(enumValue.ToString());
-        var attribute = field?.GetCustomAttribute<EnumMemberAttribute>();
-        
-        if (attribute?.Value != null)
-        {
-            return attribute.Value;
-        }
-        
-        return enumValue.ToString().ToLowerInvariant();
-    }
-
-    private string ToCamelCase(string name)
-    {
-        if (string.IsNullOrEmpty(name) || char.IsLower(name[0]))
-            return name;
-        
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+        var variablesJson = $@"{{
+            ""{idName}"": ""{entityId}"",
+            ""input"": {json}
+        }}";
+    
+        var response = await _client.ExecuteQueryWithJsonAsync<dynamic>(mutation, variablesJson, cancellationToken);
+        return DeserializeResponse(mutationName, camelCase, response);
     }
     
     public async Task<T> GetById(
@@ -203,20 +131,8 @@ public class GenericGraphQlService<T> where T : class
         _logger.LogInformation("Direct query: {Query}", query);
         _logger.LogInformation("Variables: {Variables}", variables);
 
-        var response = await _client.ExecuteQueryWithJsonAsync<dynamic>(
-            query, 
-            variables, 
-            cancellationToken);
-
-        if (response?.Data is not JsonElement jsonElement) return default(T);
-    
-        var resultElement = NavigateToPath(jsonElement, queryName);
-
-        if (!resultElement.HasValue || resultElement.Value.ValueKind == JsonValueKind.Null)
-            throw new KeyNotFoundException($"{queryName} with id {entityId} not found");
-        var result = JsonConvert.DeserializeObject<T>(resultElement.Value.GetRawText());
-        return result;
-
+        var response = await _client.ExecuteQueryWithJsonAsync<dynamic>( query,  variables, cancellationToken);
+        return DeserializeResponse(queryName,"", response);
     }
 
     public async Task<TPaginated?> GetPaginated<TPaginated>(
@@ -270,18 +186,114 @@ public class GenericGraphQlService<T> where T : class
             variables["filters"] = cleanedFilters;
         }
         
-        var response = await _client.ExecuteQueryAsync<dynamic>(
-            query, 
-            variables, 
-            cancellationToken);
+        var response = await _client.ExecuteQueryAsync<dynamic>(query, variables,  cancellationToken);
         
         if (response?.Data is not JsonElement jsonElement) return null;
         var data = NavigateToPath(jsonElement, functionName);
 
         if (!data.HasValue) return null;
-        TPaginated result = JsonConvert.DeserializeObject<TPaginated>(data.Value.GetRawText());
+        var result = JsonConvert.DeserializeObject<TPaginated>(data.Value.GetRawText());
         return result;
+        
+    }
+    
+    public async Task<T> Archive(string entityType, string objectId,bool archive ,CancellationToken cancellationToken)
+    {
+        var supportedArchiveEntities = new[] { "Contact", "Tenant" };
+    
+        if (!supportedArchiveEntities.Contains(entityType))
+        {
+            throw new NotSupportedException($"{entityType} doesn't support archive operation");
+        }
+        var entityLower = ToCamelCase(entityType);
+        var mutation = $@"
+            mutation archive{entityType}(${entityLower}Id: String!, $archive: Boolean!) {{
+               archive{entityType}({entityLower}Id: ${entityLower}Id, archive: $archive) {{
+                    {entityLower}{{
+                        {_cachedFields}
+                    }}
+                }}
+            }}";
+        
+    
+        var variables = new Dictionary<string, object>
+        {
+            ["archive"] = archive,
+            [$"{entityLower}Id"] =  objectId
+        };
+        
+        var response = await _client.ExecuteQueryAsync<dynamic>( mutation,  variables,  cancellationToken);
+        return DeserializeResponse(entityType, entityLower, response);
 
+    }
+    private T DeserializeResponse(string mutationName, string resultFieldName, GraphQLResponse<dynamic> response)
+    {
+        if (response?.Errors?.Any() == true)
+        {
+            var errorMessage = string.Join("; ", response.Errors.Select(e => e.Message));
+            if(response.Errors.Any(e=>e.Message.Contains("not found",StringComparison.OrdinalIgnoreCase))) 
+                throw new KeyNotFoundException(errorMessage);
+            if (response.Errors.Any(e => e.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException(errorMessage);
+            if (response != null) throw new ArgumentException(errorMessage);
+        }
+        
+        if (response?.Data is not JsonElement jsonElement) return default(T);
+        var data = NavigateToPath(jsonElement, $"{mutationName}.{resultFieldName}");
+        _logger.LogInformation(data.ToString());
+        return data.HasValue ? JsonConvert.DeserializeObject<T>(data.Value.GetRawText()) : null;
+    }
+    
+    private object ConvertEnumsToStrings(object input)
+    {
+        if (input == null) return null;
+
+        var inputType = input.GetType();
+        var convertedDict = new Dictionary<string, object>();
+
+        foreach (var property in inputType.GetProperties())
+        {
+            var value = property.GetValue(input);
+            
+            if (value == null) continue;
+            // {
+            //     convertedDict[ToCamelCase(property.Name)] = null;
+            //     continue;
+            // }
+            var propertyName = GetJsonPropertyName(property);
+            var propertyType = property.PropertyType;
+            
+            if (propertyType.IsEnum || Nullable.GetUnderlyingType(propertyType)?.IsEnum == true)
+            {
+                convertedDict[propertyName] = ConvertEnumToString((Enum)value);
+            }
+            else
+            {
+                convertedDict[propertyName] = value;
+            }
+        }
+
+        return convertedDict;
+    }
+
+    private string ConvertEnumToString(Enum enumValue)
+    {
+        var field = enumValue.GetType().GetField(enumValue.ToString());
+        var attribute = field?.GetCustomAttribute<EnumMemberAttribute>();
+        
+        return attribute?.Value ?? enumValue.ToString().ToLowerInvariant();
+    }
+
+    private string ToCamelCase(string name)
+    {
+        if (string.IsNullOrEmpty(name) || char.IsLower(name[0])) return name;
+        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+    }
+
+    private static string ToUpperCase(string name)
+    {
+        if (string.IsNullOrEmpty(name)|| char.IsUpper(name[0])) return name;
+        return char.ToUpperInvariant(name[0]) + name.Substring(1);
     }
 
     private static string FixQueryName(string queryName, out string singularName)
@@ -309,9 +321,7 @@ public class GenericGraphQlService<T> where T : class
                    (jsonElement.ValueKind == JsonValueKind.Object && !jsonElement.EnumerateObject().Any());
         }
 
-        return filter.GetType()
-            .GetProperties()
-            .All(prop => IsEmptyValue(prop.GetValue(filter)));
+        return filter.GetType().GetProperties().All(prop => IsEmptyValue(prop.GetValue(filter)));
     }
 
     private static bool IsEmptyValue(object value) => value switch
@@ -324,7 +334,7 @@ public class GenericGraphQlService<T> where T : class
 
     private JsonElement? NavigateToPath(JsonElement element, string path)
     {
-        _logger.LogInformation($"Navigating path: {path} in JSON");
+        _logger.LogInformation("Navigating path: {Path} in JSON", path);
         var parts = path.Split('.', StringSplitOptions.RemoveEmptyEntries);
         var current = element;
         
@@ -336,12 +346,12 @@ public class GenericGraphQlService<T> where T : class
             }
             else
             {
-                _logger.LogWarning($"Path segment '{part}' not found in JSON while navigating '{path}'");
+                _logger.LogWarning("Path segment '{Part}' not found in JSON while navigating '{Path}'", part, path);
                 return null;
             }
         }
         
-        _logger.LogInformation($"Successfully navigated to path: {path}");
+        _logger.LogInformation("Successfully navigated to path: {Path}", path);
         return current;
     }
     
@@ -366,11 +376,7 @@ public class GenericGraphQlService<T> where T : class
                 continue;
 
             var cleanedValue = value;
-            if (property.PropertyType.IsEnum)
-            {
-                cleanedValue = ConvertEnumToString((Enum)value);
-            }
-            else if (underlyingType?.IsEnum == true)
+            if (property.PropertyType.IsEnum || underlyingType?.IsEnum == true)
             {
                 cleanedValue = ConvertEnumToString((Enum)value);
             }
@@ -380,27 +386,23 @@ public class GenericGraphQlService<T> where T : class
                 if (cleanedValue is Dictionary<string, object> dict && !dict.Any())
                     continue;
             }
-            else if (value is IList list && list.Count > 0)
+            else if (value is IList { Count: > 0 } list)
             {
                 var cleanedList = new List<object>();
                 foreach (var item in list)
                 {
-                    if (item != null)
-                    {
-                        var cleanedItem = GraphQlFieldGenerator.IsComplexType(item.GetType()) ? CleanNullValues(item) : item;
-                        if (cleanedItem != null)
-                            cleanedList.Add(cleanedItem);
-                    }
+                    if (item == null) continue;
+                    var cleanedItem = GraphQlFieldGenerator.IsComplexType(item.GetType()) ? CleanNullValues(item) : item;
+                    if (cleanedItem != null)
+                        cleanedList.Add(cleanedItem);
                 }
-                if (cleanedList.Any())
+                if (cleanedList.Count != 0)
                     cleanedValue = cleanedList;
                 else
                     continue;
             }
-
             cleanedDict[GetJsonPropertyName(property)] = cleanedValue;
         }
-
         return cleanedDict;
     }
 

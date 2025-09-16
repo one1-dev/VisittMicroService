@@ -34,6 +34,8 @@ builder.Services.AddScoped<IBuildingService, BuildingService>();
 builder.Services.AddScoped<ISitesService, SitesService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<ITenantService, TenantService>();
+
 
 
 

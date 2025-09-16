@@ -64,17 +64,23 @@ public class WorkOrdersService: IWorkOrdersService
             cancellationToken);
         return workOrder;
     }
-
     public async Task<WorkOrder> WorkOrdersWorkOrderIdPut(string workOrderId, WorkOrderUpdateInput workOrderUpdateInput,
         CancellationToken cancellationToken)
     {
-        return await genericService.Update(
+        var variables = new Dictionary<string, object>
+        {
+            ["workOrderIds"] = new[] { workOrderId },
+            ["input"] = workOrderUpdateInput
+        };
+    
+        var result = await genericService.ExecuteBulkUpdate(
             "WorkOrder",
-            "updateWorkOrder",
-            workOrderId,
-            workOrderUpdateInput,
+            "updateWorkOrders",
+            "workOrders",
+            variables,
             cancellationToken
         );
+        return result.FirstOrDefault();
     }
 
     public async Task<WorkOrdersPaginated> WorkOrdersGet(WorkOrderFilter? filters, CancellationToken cancellationToken,

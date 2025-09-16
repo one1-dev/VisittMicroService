@@ -590,49 +590,18 @@
         "tags" : [ "Contacts" ]
       }
     },
-    "/tenants" : {
-      "get" : {
-        "parameters" : [ {
-          "explode" : true,
-          "in" : "query",
-          "name" : "skip",
-          "required" : false,
-          "schema" : {
-            "default" : 0,
-            "type" : "integer"
+    "/tenants/search" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/_tenants_search_post_request"
+              }
+            }
           },
-          "style" : "form"
-        }, {
-          "explode" : true,
-          "in" : "query",
-          "name" : "limit",
-          "required" : false,
-          "schema" : {
-            "default" : 20,
-            "type" : "integer"
-          },
-          "style" : "form"
-        }, {
-          "description" : "Filter by building ID",
-          "explode" : true,
-          "in" : "query",
-          "name" : "buildingId",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          },
-          "style" : "form"
-        }, {
-          "description" : "Filter by tenant name",
-          "explode" : true,
-          "in" : "query",
-          "name" : "name",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          },
-          "style" : "form"
-        } ],
+          "required" : false
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -645,9 +614,11 @@
             "description" : "Successful response"
           }
         },
-        "summary" : "Get list of tenants",
+        "summary" : "Get list of contacts",
         "tags" : [ "Tenants" ]
-      },
+      }
+    },
+    "/tenants" : {
       "post" : {
         "requestBody" : {
           "content" : {
@@ -2805,7 +2776,8 @@
           },
           "isArchived" : {
             "description" : "Whether the contact is archived",
-            "type" : "boolean"
+            "type" : "boolean",
+            "nullable" : true
           },
           "tenant" : {
             "$ref" : "#/components/schemas/Tenant"
@@ -2823,7 +2795,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "_id", "isArchived", "name" ]
+        "required" : [ "_id", "name" ]
       },
       "Tenant" : {
         "example" : {
@@ -3042,7 +3014,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "_id", "isArchived", "name" ]
+        "required" : [ "_id", "name" ]
       },
       "WorkOrder" : {
         "example" : {
@@ -31013,6 +30985,13 @@
           }
         }
       },
+      "TenantFilter" : {
+        "properties" : {
+          "_id" : {
+            "$ref" : "#/components/schemas/FilterIdStringArray"
+          }
+        }
+      },
       "FilterSiteModelType" : {
         "description" : "Filter for site model type field with comparison operators",
         "properties" : {
@@ -32224,6 +32203,26 @@
         "properties" : {
           "filters" : {
             "$ref" : "#/components/schemas/ContactFilter"
+          },
+          "skip" : {
+            "default" : 0,
+            "description" : "Number of items to skip",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "limit" : {
+            "default" : 20,
+            "description" : "Number of items to return",
+            "maximum" : 1000,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }
+      },
+      "_tenants_search_post_request" : {
+        "properties" : {
+          "filters" : {
+            "$ref" : "#/components/schemas/TenantFilter"
           },
           "skip" : {
             "default" : 0,

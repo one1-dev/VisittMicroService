@@ -30,8 +30,9 @@ namespace VisitService.Models
         /// Building ID to add to tenant
         /// </summary>
         /// <value>Building ID to add to tenant</value>
+        [Required]
         [DataMember(Name="buildingId", EmitDefaultValue=false)]
-        public string? BuildingId { get; set; }
+        public string BuildingId { get; set; }
 
         /// <summary>
         /// Gets or Sets Site
