@@ -88,7 +88,8 @@ public class WorkOrdersService: IWorkOrdersService
     {
         
         var gResponse =  await genericService.GetPaginated<WorkOrdersPaginated>(
-            "getWorkOrders",
+            "workOrders",
+            "workOrder",
             filters,
             cancellationToken,
             skip,
@@ -105,6 +106,7 @@ public class WorkOrdersService: IWorkOrdersService
         
         var charges = await genericService.GetPaginated<ChargesPaginated>(
             "charges",
+            "charge",
             null,
             cancellationToken);
         

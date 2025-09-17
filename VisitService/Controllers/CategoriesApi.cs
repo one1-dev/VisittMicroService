@@ -21,69 +21,50 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using Newtonsoft.Json;
 using VisitService.Attributes;
 using VisitService.Models;
+using VisitService.Services.Interfaces;
 
-namespace VisitService.Controllers
+namespace VisitService.Controllers;
+
+/// <summary>
+/// 
+/// </summary>
+[ApiController]
+public class CategoriesApiController(ICategoriesService categoriesService) : ControllerBase
 { 
     /// <summary>
-    /// 
+    /// Get category by ID
     /// </summary>
-    [ApiController]
-    public class CategoriesApiController : ControllerBase
-    { 
-        /// <summary>
-        /// Get category by ID
-        /// </summary>
-        /// <remarks>Get category with its sub-categories</remarks>
-        /// <param name="categoryId"></param>
-        /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
-        /// <response code="200">Successful response</response>
-        [HttpGet]
-        [Route("/categories/{categoryId}")]
-        [Authorize]
-        [ValidateModelState]
-        [SwaggerOperation("CategoriesCategoryIdGet")]
-        [SwaggerResponse(statusCode: 200, type: typeof(Category), description: "Successful response")]
-        public virtual async Task<IActionResult> CategoriesCategoryIdGet([FromRoute (Name = "categoryId")][Required]string categoryId, CancellationToken cancellationToken)
-        {
+    /// <remarks>Get category with its sub-categories</remarks>
+    /// <param name="categoryId"></param>
+    /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
+    /// <response code="200">Successful response</response>
+    [HttpGet]
+    [Route("/categories/{categoryId}")]
+    // [Authorize]
+    [ValidateModelState]
+    [SwaggerOperation("CategoriesCategoryIdGet")]
+    [SwaggerResponse(statusCode: 200, type: typeof(Category), description: "Successful response")]
+    public virtual async Task<IActionResult> CategoriesCategoryIdGet([FromRoute (Name = "categoryId")][Required]string categoryId, CancellationToken cancellationToken)
+        => Ok(await categoriesService.GetCategoryById(categoryId, cancellationToken));
 
-            //TODO: Uncomment the next line to return response 200 or use other options such as return this.NotFound(), return this.BadRequest(..), ...
-            // return StatusCode(200, default(Category));
-            string exampleJson = null;
-            exampleJson = "{\n  \"color\" : \"color\",\n  \"name\" : \"name\",\n  \"_id\" : \"_id\",\n  \"subCategories\" : [ null, null ]\n}";
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<Category>(exampleJson)
-            : default(Category);
-            //TODO: Change the data returned
-            return await Task.FromResult<IActionResult>(new ObjectResult(example));
-        }
-
-        /// <summary>
-        /// Get list of categories
-        /// </summary>
-        /// <param name="skip"></param>
-        /// <param name="limit"></param>
-        /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
-        /// <response code="200">Successful response</response>
-        [HttpGet]
-        [Route("/categories")]
-        [Authorize]
-        [ValidateModelState]
-        [SwaggerOperation("CategoriesGet")]
-        [SwaggerResponse(statusCode: 200, type: typeof(CategoriesPaginated), description: "Successful response")]
-        public virtual async Task<IActionResult> CategoriesGet([FromQuery (Name = "skip")]int? skip, [FromQuery (Name = "limit")]int? limit, CancellationToken cancellationToken)
-        {
-
-            //TODO: Uncomment the next line to return response 200 or use other options such as return this.NotFound(), return this.BadRequest(..), ...
-            // return StatusCode(200, default(CategoriesPaginated));
-            string exampleJson = null;
-            exampleJson = "{\n  \"pageInfo\" : {\n    \"limit\" : 1,\n    \"hasNext\" : true,\n    \"skip\" : 6,\n    \"totalCount\" : 0\n  },\n  \"items\" : [ {\n    \"color\" : \"color\",\n    \"name\" : \"name\",\n    \"_id\" : \"_id\",\n    \"subCategories\" : [ null, null ]\n  }, {\n    \"color\" : \"color\",\n    \"name\" : \"name\",\n    \"_id\" : \"_id\",\n    \"subCategories\" : [ null, null ]\n  } ]\n}";
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<CategoriesPaginated>(exampleJson)
-            : default(CategoriesPaginated);
-            //TODO: Change the data returned
-            return await Task.FromResult<IActionResult>(new ObjectResult(example));
-        }
+    /// <summary>
+    /// Get list of categories
+    /// </summary>
+    /// <param name="categoriesSearchPostRequest"></param>
+    /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
+    /// <response code="200">Successful response</response>
+    [HttpPost]
+    [Route("/categories/search")]
+    // [Authorize]
+    [Consumes("application/json")]
+    [ValidateModelState]
+    [SwaggerOperation("CategoriesSearchPost")]
+    [SwaggerResponse(statusCode: 200, type: typeof(CategoriesPaginated), description: "Successful response")]
+    public virtual async Task<IActionResult> CategoriesSearchPost([FromBody]CategoriesSearchPostRequest? categoriesSearchPostRequest, CancellationToken cancellationToken)
+    {
+        var limit = categoriesSearchPostRequest?.Limit ?? 20;
+        var skip = categoriesSearchPostRequest?.Skip ?? 0;
+        var filters = categoriesSearchPostRequest?.Filters;
+        return Ok(await categoriesService.GetCategories(limit, skip, filters, cancellationToken));
     }
 }

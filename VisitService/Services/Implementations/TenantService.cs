@@ -58,6 +58,7 @@ public class TenantService : ITenantService
     {
         var   userPaginated = await _genericService.GetPaginated<TenantsPaginated>(
             "tenants",
+            "tenant",
             filters,
             cancellationToken,
             skip,

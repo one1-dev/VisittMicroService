@@ -28,6 +28,7 @@ public class SitesService: ISitesService
     
     var sitesPaginated = await _genericService.GetPaginated<SitesPaginated>(
             "sites",
+            "site",
             filters,
             cancellationToken,
             skip,
@@ -40,6 +41,7 @@ public class SitesService: ISitesService
     {
         return await _genericService.GetPaginated<SitesPaginated>(
             "sites",
+            "site",
             filters,
             cancellationToken,
             skip ??= 0,

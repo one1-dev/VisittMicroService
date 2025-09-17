@@ -18,6 +18,7 @@ public class UserService: IUserService
     {
         var userPaginated = _genericService.GetPaginated<UsersPaginated>(
             "users",
+            "user",
             filters,
             cancellationToken,
             skip,

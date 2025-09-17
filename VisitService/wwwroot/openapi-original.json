@@ -614,7 +614,7 @@
             "description" : "Successful response"
           }
         },
-        "summary" : "Get list of contacts",
+        "summary" : "Get list of Tenants",
         "tags" : [ "Tenants" ]
       }
     },
@@ -923,29 +923,18 @@
         "tags" : [ "Work Orders" ]
       }
     },
-    "/categories" : {
-      "get" : {
-        "parameters" : [ {
-          "explode" : true,
-          "in" : "query",
-          "name" : "skip",
-          "required" : false,
-          "schema" : {
-            "default" : 0,
-            "type" : "integer"
+    "/categories/search" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/_categories_search_post_request"
+              }
+            }
           },
-          "style" : "form"
-        }, {
-          "explode" : true,
-          "in" : "query",
-          "name" : "limit",
-          "required" : false,
-          "schema" : {
-            "default" : 20,
-            "type" : "integer"
-          },
-          "style" : "form"
-        } ],
+          "required" : false
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -30992,6 +30981,13 @@
           }
         }
       },
+      "CategoryFilter" : {
+        "properties" : {
+          "_id" : {
+            "$ref" : "#/components/schemas/FilterIdStringArray"
+          }
+        }
+      },
       "FilterSiteModelType" : {
         "description" : "Filter for site model type field with comparison operators",
         "properties" : {
@@ -31352,7 +31348,8 @@
           "site" : {
             "$ref" : "#/components/schemas/TenantSiteInput"
           }
-        }
+        },
+        "required" : [ "buildingId" ]
       },
       "TenantSiteInput" : {
         "example" : {
@@ -32252,6 +32249,26 @@
           }
         },
         "required" : [ "input", "workOrderIds" ]
+      },
+      "_categories_search_post_request" : {
+        "properties" : {
+          "filters" : {
+            "$ref" : "#/components/schemas/CategoryFilter"
+          },
+          "skip" : {
+            "default" : 0,
+            "description" : "Number of items to skip",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "limit" : {
+            "default" : 20,
+            "description" : "Number of items to return",
+            "maximum" : 1000,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }
       },
       "_charges_status_put_request" : {
         "properties" : {

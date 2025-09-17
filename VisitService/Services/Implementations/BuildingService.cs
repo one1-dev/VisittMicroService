@@ -46,6 +46,7 @@ public class BuildingService: IBuildingService
         };
         var sitesPaginated = await _siteService.GetPaginated<SitesPaginated>(
             "sites",
+            "site",
             filters,
             cancellationToken,
             skip,
@@ -58,7 +59,8 @@ public class BuildingService: IBuildingService
         CancellationToken cancellationToken = default)
     {
         return await _graphQlService.GetPaginated<BuildingsPaginated>(
-                "getBuildings",
+                "buildings",
+                "building",
                 buildingFilter,
                 cancellationToken,
                 skip,

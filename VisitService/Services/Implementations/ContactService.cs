@@ -57,6 +57,7 @@ public class ContactService : IContactService
     {
         var   userPaginated = await _genericService.GetPaginated<ContactsPaginated>(
             "contacts",
+            "contact",
             filters,
             cancellationToken,
             skip,

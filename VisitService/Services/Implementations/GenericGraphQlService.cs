@@ -136,33 +136,33 @@ public class GenericGraphQlService<T> where T : class
     }
 
     public async Task<TPaginated?> GetPaginated<TPaginated>(
-        string queryName,
+        string pluralQueryName,
+        string singularFilterName,
         object? filters,
         CancellationToken cancellationToken,
         int skip = 0,
         int limit = 20) where TPaginated : class
     {
-        var functionName = FixQueryName(queryName, out var singularName);
-        var filterName = char.ToUpper(singularName[0]) + singularName[1..] + "Filter";
-
+        var filterName = ToUpperCase(singularFilterName) + "Filter";
+    
         var hasFilters = filters != null && !IsEmptyFilter(filters);
         var filtersParam = hasFilters ? $", $filters: [{filterName}]" : "";
         var filtersArg = hasFilters ? ", filters: $filters" : "";
 
         var query = $@"
-            query {functionName}($skip: Int, $limit: Int{filtersParam}) {{
-                {functionName}(skip: $skip, limit: $limit{filtersArg}) {{
-                    items {{
-                        {_cachedFields}
-                    }}
-                    pageInfo {{
-                        hasNext
-                        totalCount
-                        skip
-                        limit
-                    }}
+        query {pluralQueryName}($skip: Int, $limit: Int{filtersParam}) {{
+            {pluralQueryName}(skip: $skip, limit: $limit{filtersArg}) {{
+                items {{
+                    {_cachedFields}
                 }}
-            }}";
+                pageInfo {{
+                    hasNext
+                    totalCount
+                    skip
+                    limit
+                }}
+            }}
+        }}";
 
         var variables = new Dictionary<string, object>
         {
@@ -173,7 +173,7 @@ public class GenericGraphQlService<T> where T : class
         if (hasFilters)
         {
             var cleanedFilters = filters;
-    
+
             if (filters is IList list)
             {
                 cleanedFilters = list.Cast<object>().Select(CleanNullValues).ToList();
@@ -182,19 +182,18 @@ public class GenericGraphQlService<T> where T : class
             {
                 cleanedFilters = new[] { CleanNullValues(filters) };
             }
-    
+
             variables["filters"] = cleanedFilters;
         }
-        
-        var response = await _client.ExecuteQueryAsync<dynamic>(query, variables,  cancellationToken);
-        
+    
+        var response = await _client.ExecuteQueryAsync<dynamic>(query, variables, cancellationToken);
+    
         if (response?.Data is not JsonElement jsonElement) return null;
-        var data = NavigateToPath(jsonElement, functionName);
+        var data = NavigateToPath(jsonElement, pluralQueryName);
 
         if (!data.HasValue) return null;
         var result = JsonConvert.DeserializeObject<TPaginated>(data.Value.GetRawText());
         return result;
-        
     }
     
     public async Task<T> Archive(string entityType, string objectId,bool archive ,CancellationToken cancellationToken)
@@ -215,7 +214,6 @@ public class GenericGraphQlService<T> where T : class
                 }}
             }}";
         
-    
         var variables = new Dictionary<string, object>
         {
             ["archive"] = archive,
@@ -243,38 +241,6 @@ public class GenericGraphQlService<T> where T : class
         _logger.LogInformation(data.ToString());
         return data.HasValue ? JsonConvert.DeserializeObject<T>(data.Value.GetRawText()) : null;
     }
-    
-    private object ConvertEnumsToStrings(object input)
-    {
-        if (input == null) return null;
-
-        var inputType = input.GetType();
-        var convertedDict = new Dictionary<string, object>();
-
-        foreach (var property in inputType.GetProperties())
-        {
-            var value = property.GetValue(input);
-            
-            if (value == null) continue;
-            // {
-            //     convertedDict[ToCamelCase(property.Name)] = null;
-            //     continue;
-            // }
-            var propertyName = GetJsonPropertyName(property);
-            var propertyType = property.PropertyType;
-            
-            if (propertyType.IsEnum || Nullable.GetUnderlyingType(propertyType)?.IsEnum == true)
-            {
-                convertedDict[propertyName] = ConvertEnumToString((Enum)value);
-            }
-            else
-            {
-                convertedDict[propertyName] = value;
-            }
-        }
-
-        return convertedDict;
-    }
 
     private string ConvertEnumToString(Enum enumValue)
     {
@@ -296,31 +262,17 @@ public class GenericGraphQlService<T> where T : class
         return char.ToUpperInvariant(name[0]) + name.Substring(1);
     }
 
-    private static string FixQueryName(string queryName, out string singularName)
-    {
-        var functionName = queryName.StartsWith("Get", StringComparison.OrdinalIgnoreCase) 
-            ? char.ToLower(queryName[3]) + queryName.Substring(4)
-            : queryName;
-        
-        if (!functionName.EndsWith("s"))
-        {
-            functionName += "s";
-        }
-
-        singularName = functionName.EndsWith("s") ? functionName.Substring(0, functionName.Length - 1) : functionName;
-        return functionName;
-    }
-
     private bool IsEmptyFilter(object filter)
     {
         if (filter == null) return true;
     
         if (filter is JsonElement jsonElement)
         {
+            _logger.LogInformation("filter  JsonElement is {filter}",jsonElement.GetRawText());
             return jsonElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ||
                    (jsonElement.ValueKind == JsonValueKind.Object && !jsonElement.EnumerateObject().Any());
         }
-
+        _logger.LogInformation("filter  filter is {filter}", filter);
         return filter.GetType().GetProperties().All(prop => IsEmptyValue(prop.GetValue(filter)));
     }
 
